@@ -34,9 +34,16 @@ export function formatFileSize(bytes: number): string {
 
 /**
  * Download data as file
+ * Ensures proper UTF-8 encoding for text files
  */
 export function downloadFile(data: string, filename: string, type: string = 'text/plain') {
-  const blob = new Blob([data], { type })
+  // For CSV files, ensure UTF-8 encoding with BOM for Excel compatibility
+  let content = data
+  if (type.includes('csv') && !data.startsWith('\uFEFF')) {
+    content = '\uFEFF' + data
+  }
+
+  const blob = new Blob([content], { type: `${type};charset=utf-8` })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -47,9 +54,17 @@ export function downloadFile(data: string, filename: string, type: string = 'tex
 
 /**
  * Parse CSV data
+ * Handles UTF-8 BOM, quoted fields, and various line endings
  */
 export function parseCSV(text: string): string[][] {
-  const lines = text.split('\n')
+  // Remove UTF-8 BOM if present
+  if (text.charCodeAt(0) === 0xFEFF) {
+    text = text.slice(1)
+  }
+
+  // Split by both \n and \r\n to handle different line endings
+  const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0)
+
   return lines.map(line => {
     const result: string[] = []
     let current = ''
@@ -59,7 +74,13 @@ export function parseCSV(text: string): string[][] {
       const char = line[i]
 
       if (char === '"') {
-        inQuotes = !inQuotes
+        // Handle escaped quotes ("")
+        if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+          current += '"'
+          i++ // Skip next quote
+        } else {
+          inQuotes = !inQuotes
+        }
       } else if (char === ',' && !inQuotes) {
         result.push(current.trim())
         current = ''
@@ -68,12 +89,11 @@ export function parseCSV(text: string): string[][] {
       }
     }
 
-    if (current) {
-      result.push(current.trim())
-    }
+    // Add the last field
+    result.push(current.trim())
 
     return result
-  }).filter(row => row.length > 0)
+  })
 }
 
 /**

@@ -3,6 +3,8 @@
  * Manages SQLite database connection using Tauri's fs API
  */
 
+import Logger from '../utils/logger'
+
 /**
  * In-memory database simulation
  * In a real implementation, you would use better-sqlite3 or similar
@@ -26,7 +28,12 @@ class DatabaseConnection {
    * Initialize database
    */
   async init(): Promise<void> {
-    if (this.initialized) return
+    if (this.initialized) {
+      Logger.debug('Database already initialized')
+      return
+    }
+
+    Logger.info('Initializing database...')
 
     try {
       // Try to load from localStorage first
@@ -34,14 +41,18 @@ class DatabaseConnection {
       if (savedData) {
         const parsed = JSON.parse(savedData)
         this.data = new Map(Object.entries(parsed))
+        Logger.info('Loaded data from localStorage', {
+          tables: Array.from(this.data.keys())
+        })
       }
 
       // Initialize tables if they don't exist
       this.initializeTables()
 
       this.initialized = true
+      Logger.info('Database initialized successfully')
     } catch (error) {
-      console.error('Failed to initialize database:', error)
+      Logger.error('Failed to initialize database:', error)
       // Start fresh if there's an error
       this.initializeTables()
       this.initialized = true
@@ -77,8 +88,9 @@ class DatabaseConnection {
     try {
       const obj = Object.fromEntries(this.data)
       localStorage.setItem('seating-system-db', JSON.stringify(obj))
+      Logger.debug('Database saved to localStorage')
     } catch (error) {
-      console.error('Failed to save database:', error)
+      Logger.error('Failed to save database:', error)
     }
   }
 
@@ -86,7 +98,9 @@ class DatabaseConnection {
    * Get all records from a table
    */
   getAll(tableName: string): any[] {
-    return this.data.get(tableName) || []
+    const records = this.data.get(tableName) || []
+    Logger.databaseQuery(tableName, { type: 'all' }, records.length)
+    return records
   }
 
   /**
@@ -94,17 +108,21 @@ class DatabaseConnection {
    */
   getById(tableName: string, id: string): any | null {
     const records = this.getAll(tableName)
-    return records.find((r: any) => r.id === id) || null
+    const record = records.find((r: any) => r.id === id) || null
+    Logger.databaseQuery(tableName, { id }, record ? 1 : 0)
+    return record
   }
 
   /**
    * Insert a record
    */
   async insert(tableName: string, record: any): Promise<any> {
+    Logger.databaseOp('insert', tableName, record)
     const records = this.getAll(tableName)
     records.push(record)
     this.data.set(tableName, records)
     await this.save()
+    Logger.info(`✅ Inserted record into ${tableName}`, { id: record.id })
     return record
   }
 
@@ -112,16 +130,19 @@ class DatabaseConnection {
    * Update a record
    */
   async update(tableName: string, id: string, updates: Partial<any>): Promise<boolean> {
+    Logger.databaseOp('update', tableName, { id, updates })
     const records = this.getAll(tableName)
     const index = records.findIndex((r: any) => r.id === id)
 
     if (index === -1) {
+      Logger.warn(`❌ Record not found for update: ${id} in ${tableName}`)
       return false
     }
 
     records[index] = { ...records[index], ...updates, updatedAt: new Date().toISOString() }
     this.data.set(tableName, records)
     await this.save()
+    Logger.info(`✅ Updated record in ${tableName}`, { id })
     return true
   }
 
@@ -129,15 +150,18 @@ class DatabaseConnection {
    * Delete a record
    */
   async delete(tableName: string, id: string): Promise<boolean> {
+    Logger.databaseOp('delete', tableName, { id })
     const records = this.getAll(tableName)
     const filtered = records.filter((r: any) => r.id !== id)
 
     if (filtered.length === records.length) {
+      Logger.warn(`❌ Record not found for delete: ${id} in ${tableName}`)
       return false
     }
 
     this.data.set(tableName, filtered)
     await this.save()
+    Logger.info(`✅ Deleted record from ${tableName}`, { id })
     return true
   }
 
@@ -146,7 +170,9 @@ class DatabaseConnection {
    */
   find(tableName: string, condition: (record: any) => boolean): any[] {
     const records = this.getAll(tableName)
-    return records.filter(condition)
+    const results = records.filter(condition)
+    Logger.databaseQuery(tableName, { type: 'conditional' }, results.length)
+    return results
   }
 
   /**
@@ -154,6 +180,7 @@ class DatabaseConnection {
    */
   getSetting(key: string): any {
     const settings = this.data.get('app_settings') || {}
+    Logger.databaseQuery('app_settings', { key }, 1)
     return settings[key]
   }
 
@@ -161,19 +188,23 @@ class DatabaseConnection {
    * Set application setting
    */
   async setSetting(key: string, value: any): Promise<void> {
+    Logger.databaseOp('update', 'app_settings', { key, value })
     const settings = this.data.get('app_settings') || {}
     settings[key] = value
     this.data.set('app_settings', settings)
     await this.save()
+    Logger.info(`✅ Updated setting: ${key}`)
   }
 
   /**
    * Clear all data (for testing purposes)
    */
   async clear(): Promise<void> {
+    Logger.warn('⚠️ Clearing all database data!')
     this.data.clear()
     this.initializeTables()
     await this.save()
+    Logger.info('✅ Database cleared and reinitialized')
   }
 }
 

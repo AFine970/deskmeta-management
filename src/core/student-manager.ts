@@ -195,19 +195,41 @@ export class StudentManager {
 
   /**
    * Normalize gender value
+   * Handles various formats: 男/女, male/female, m/f, 1/0
    */
   private normalizeGender(gender: string): 'male' | 'female' {
-    const normalized = gender.toLowerCase().trim()
+    if (!gender || typeof gender !== 'string') {
+      throw new Error(`Invalid gender value: ${gender}`)
+    }
 
-    if (['男', 'male', 'm', '1'].includes(normalized)) {
+    // Remove all whitespace characters
+    const cleaned = gender.replace(/\s+/g, '')
+
+    // Check for male indicators
+    if (
+      cleaned === '男' ||
+      cleaned.toLowerCase() === 'male' ||
+      cleaned.toLowerCase() === 'm' ||
+      cleaned === '1'
+    ) {
       return 'male'
     }
 
-    if (['女', 'female', 'f', '0'].includes(normalized)) {
+    // Check for female indicators
+    if (
+      cleaned === '女' ||
+      cleaned.toLowerCase() === 'female' ||
+      cleaned.toLowerCase() === 'f' ||
+      cleaned === '0'
+    ) {
       return 'female'
     }
 
-    throw new Error(`Invalid gender value: ${gender}`)
+    // Additional fallback: check if string contains the characters
+    if (cleaned.includes('男')) return 'male'
+    if (cleaned.includes('女')) return 'female'
+
+    throw new Error(`Invalid gender value: "${gender}" (cleaned: "${cleaned}")`)
   }
 
   /**

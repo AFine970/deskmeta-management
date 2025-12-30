@@ -88,6 +88,10 @@
               :items-per-page="10"
               :loading="studentStore.loading"
             >
+              <template #item.index="{ index }">
+                {{ index + 1 }}
+              </template>
+
               <template #item.gender="{ item }">
                 <v-chip
                   :color="item.gender === 'male' ? 'blue' : 'pink'"
@@ -140,7 +144,7 @@
               v-model="studentForm.name"
               label="姓名"
               prepend-icon="mdi-account"
-              :rules="[rules.required, rules.name]"
+              :rules="[rules.required, rules.name, rules.uniqueName]"
             />
 
             <v-radio-group
@@ -186,8 +190,8 @@
 
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="closeAddDialog">取消</v-btn>
-          <v-btn color="primary" @click="saveStudent">保存</v-btn>
+          <v-btn @click="closeAddDialog" :disabled="saving">取消</v-btn>
+          <v-btn color="primary" @click="saveStudent" :loading="saving" :disabled="saving">保存</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -201,6 +205,18 @@
           <v-alert type="info" variant="tonal" class="mb-4">
             请上传CSV文件,文件应包含以下列:姓名、性别、联系方式(可选)、年级(可选)、班级(可选)
           </v-alert>
+
+          <div class="mb-4">
+            <v-btn
+              color="secondary"
+              prepend-icon="mdi-download"
+              @click="downloadTemplate"
+              variant="outlined"
+              block
+            >
+              下载导入模板
+            </v-btn>
+          </div>
 
           <v-file-input
             v-model="importFile"
@@ -251,6 +267,7 @@ import { useStudentStore } from '../../stores/student'
 import { storeToRefs } from 'pinia'
 import type { Student, CreateStudentDto } from '../../types'
 import { parseCSV, downloadFile } from '../../utils/helpers'
+import { TemplateGenerator } from '../../utils/template'
 
 const studentStore = useStudentStore()
 const { students, loading } = storeToRefs(studentStore)
@@ -276,9 +293,11 @@ const studentToDelete = ref<Student | null>(null)
 const importFile = ref<File | null>(null)
 const importing = ref(false)
 const searchKeyword = ref('')
+const saving = ref(false) // 防重复提交标记
 
 // Table headers
 const headers = [
+  { title: '序号', key: 'index', sortable: false },
   { title: '姓名', key: 'name', sortable: true },
   { title: '性别', key: 'gender', sortable: true },
   { title: '联系方式', key: 'contact', sortable: false },
@@ -291,7 +310,16 @@ const headers = [
 // Validation rules
 const rules = {
   required: (v: string) => !!v || '此项为必填',
-  name: (v: string) => v.length <= 50 || '姓名不能超过50个字符'
+  name: (v: string) => v.length <= 50 || '姓名不能超过50个字符',
+  uniqueName: (v: string) => {
+    if (!v) return true
+    const existing = studentStore.students.find(s => s.name === v)
+    // 如果是编辑模式，排除当前学生
+    if (editingStudent.value) {
+      return !existing || existing.id === editingStudent.value.id || '姓名已存在'
+    }
+    return !existing || '姓名已存在'
+  }
 }
 
 // Load students on mount
@@ -307,6 +335,7 @@ function handleSearch() {
 // Edit student
 function editStudent(student: Student) {
   editingStudent.value = student
+  saving.value = false  // 重置保存状态
   studentForm.value = {
     name: student.name,
     gender: student.gender,
@@ -321,6 +350,10 @@ function editStudent(student: Student) {
 
 // Save student
 async function saveStudent() {
+  // 防止重复提交
+  if (saving.value) return
+
+  saving.value = true
   try {
     if (editingStudent.value) {
       await studentStore.updateStudent(editingStudent.value.id, studentForm.value)
@@ -331,6 +364,8 @@ async function saveStudent() {
   } catch (error) {
     console.error('Failed to save student:', error)
     alert('保存失败: ' + (error as Error).message)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -338,6 +373,7 @@ async function saveStudent() {
 function closeAddDialog() {
   showAddDialog.value = false
   editingStudent.value = null
+  saving.value = false
   studentForm.value = {
     name: '',
     gender: 'male',
@@ -382,7 +418,7 @@ async function importStudents() {
     // Skip header row if exists
     const dataRows = rows[0][0] === '姓名' ? rows.slice(1) : rows
 
-    const importData = dataRows.map(row => ({
+    const importData = dataRows.map((row) => ({
       name: row[0] || '',
       gender: row[1] || 'male',
       contact: row[2] || '',
@@ -428,5 +464,16 @@ function exportStudents() {
   }
 
   downloadFile(csv, 'students.csv', 'text/csv')
+}
+
+// Download import template
+function downloadTemplate() {
+  try {
+    TemplateGenerator.downloadStudentTemplate()
+    alert('导入模板已下载！请查看浏览器下载文件夹。')
+  } catch (error) {
+    console.error('Failed to download template:', error)
+    alert('下载模板失败: ' + (error as Error).message)
+  }
 }
 </script>

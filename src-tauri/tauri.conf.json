@@ -23,8 +23,7 @@
         "writeFile": true,
         "readDir": true,
         "createDir": true,
-        "removeFile": true,
-        "path": true
+        "removeFile": true
       },
       "dialog": {
         "all": false,

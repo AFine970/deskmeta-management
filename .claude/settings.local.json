@@ -8,7 +8,14 @@
       "Bash(setx:*)",
       "Bash(npm install:*)",
       "Bash(npm run build:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\n初始化项目：智能换座位系统\n\n基于 Tauri + Vue 3 + TypeScript + Vuetify 构建的桌面应用，用于帮助小初高班主任快速生成座位表并支持动画演示。\n\n主要功能：\n- ✅ 座位表设计（支持自定义行列数）\n- ✅ 学生信息管理（添加/编辑/删除/批量导入）\n- 🚧 座位填充（随机/手动/混合模式）\n- 🚧 同桌约束（男女同桌/同性同桌）\n- 🚧 动画演示（类似抽奖效果）\n- 🚧 PDF导出打印\n\n技术栈：\n- 前端：Vue 3 + TypeScript + Vuetify 3\n- 桌面框架：Tauri\n- 状态管理：Pinia\n- 路由：Vue Router\n- 动画：GSAP\n- PDF导出：jsPDF + html2canvas\n\n项目结构：\n- src/core/ - 核心业务逻辑\n- src/ui/ - UI组件和视图\n- src/stores/ - Pinia状态管理\n- src/repository/ - 数据访问层\n- src/database/ - 数据库相关\n- src/types/ - TypeScript类型定义\n- src/utils/ - 工具函数\n- docs/ - 开发文档\n- wiki/ - 项目文档\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git config:*)",
+      "Bash(npm run tauri:dev:*)",
+      "Bash(rustup show:*)",
+      "Bash(npm run dev:*)",
+      "Bash(rustup toolchain install:*)",
+      "Bash(cat:*)"
     ]
   }
 }
