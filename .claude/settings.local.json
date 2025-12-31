@@ -15,7 +15,11 @@
       "Bash(rustup show:*)",
       "Bash(npm run dev:*)",
       "Bash(rustup toolchain install:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 修复添加学生时列表重复新增的问题\n\n主要修复内容：\n- 在 UI 层添加防重复提交机制 \\(saving 状态\\)\n- Store 层 addStudent 增加 ID 去重检查\n- 使用 splice 替换数组元素确保响应式更新\n- 优化 closeAddDialog 和 editStudent 状态重置\n\n修复的问题：\n✅ 防止快速点击保存按钮导致重复提交\n✅ 防止相同 ID 的学生被重复添加到列表\n✅ 确保数据更新时响应式系统正确工作\n\n相关文件：\n- src/ui/views/StudentManagement.vue: 添加 saving 状态和按钮禁用逻辑\n- src/stores/student.ts: 增加重复数据检查和响应式更新优化\nEOF\n\\)\")",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

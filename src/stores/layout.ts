@@ -28,6 +28,7 @@ export const useLayoutStore = defineStore('layout', () => {
     loading.value = true
     try {
       await DatabaseConnection.getInstance().init()
+      // Direct assignment - database ensures uniqueness
       layouts.value = layoutRepository.findAll()
 
       // Load default layout if available
@@ -44,7 +45,8 @@ export const useLayoutStore = defineStore('layout', () => {
     loading.value = true
     try {
       const layout = await seatManager.createLayout(data)
-      layouts.value.push(layout)
+      // Reload from database to ensure consistency
+      layouts.value = layoutRepository.findAll()
       currentLayout.value = layout
       return layout
     } finally {
@@ -56,10 +58,8 @@ export const useLayoutStore = defineStore('layout', () => {
     loading.value = true
     try {
       const layout = await seatManager.updateLayout(id, data)
-      const index = layouts.value.findIndex(l => l.id === id)
-      if (index !== -1) {
-        layouts.value[index] = layout
-      }
+      // Reload from database to ensure consistency
+      layouts.value = layoutRepository.findAll()
       if (currentLayout.value?.id === id) {
         currentLayout.value = layout
       }
@@ -73,7 +73,8 @@ export const useLayoutStore = defineStore('layout', () => {
     loading.value = true
     try {
       await seatManager.deleteLayout(id)
-      layouts.value = layouts.value.filter(l => l.id !== id)
+      // Reload from database to ensure consistency
+      layouts.value = layoutRepository.findAll()
       if (currentLayout.value?.id === id) {
         currentLayout.value = null
       }
@@ -85,9 +86,8 @@ export const useLayoutStore = defineStore('layout', () => {
   async function setAsDefault(id: string) {
     try {
       await seatManager.setAsDefault(id)
-      layouts.value.forEach(l => {
-        l.isDefault = l.id === id
-      })
+      // Reload from database to ensure consistency
+      layouts.value = layoutRepository.findAll()
     } catch (error) {
       console.error('Failed to set default layout:', error)
       throw error
@@ -126,7 +126,8 @@ export const useLayoutStore = defineStore('layout', () => {
     try {
       const layout = await seatManager.cloneLayout(id, newName)
       if (layout) {
-        layouts.value.push(layout)
+        // Reload from database to ensure consistency
+        layouts.value = layoutRepository.findAll()
       }
       return layout
     } finally {

@@ -258,6 +258,64 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Message Snackbar -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top"
+    >
+      {{ snackbar.message }}
+      <template #actions>
+        <v-btn variant="text" @click="snackbar.show = false">
+          关闭
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+    <!-- Import Result Dialog -->
+    <v-dialog v-model="showImportResultDialog" max-width="500px">
+      <v-card>
+        <v-card-title>导入结果</v-card-title>
+        <v-card-text>
+          <v-alert type="success" variant="tonal" class="mb-2">
+            导入完成!
+          </v-alert>
+          <div class="text-body-1">
+            <div>✅ 成功: {{ importResult.success }} 人</div>
+            <div v-if="importResult.failed > 0" class="text-error">❌ 失败: {{ importResult.failed }} 人</div>
+          </div>
+          <div v-if="importResult.errors.length > 0" class="mt-4">
+            <div class="text-subtitle-2 mb-1">错误详情:</div>
+            <v-list density="compact" max-height="200" class="overflow-y-auto">
+              <v-list-item v-for="(error, index) in importResult.errors" :key="index">
+                <v-list-item-title class="text-error">{{ error }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn color="primary" @click="showImportResultDialog = false">确定</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Template Download Snackbar -->
+    <v-snackbar
+      v-model="templateSnackbar.show"
+      color="success"
+      timeout="3000"
+      location="top"
+    >
+      {{ templateSnackbar.message }}
+      <template #actions>
+        <v-btn variant="text" @click="templateSnackbar.show = false">
+          关闭
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -276,6 +334,7 @@ const { students, loading } = storeToRefs(studentStore)
 const showAddDialog = ref(false)
 const showImportDialog = ref(false)
 const showDeleteDialog = ref(false)
+const showImportResultDialog = ref(false)
 
 // Form data
 const studentForm = ref<CreateStudentDto>({
@@ -294,6 +353,27 @@ const importFile = ref<File | null>(null)
 const importing = ref(false)
 const searchKeyword = ref('')
 const saving = ref(false) // 防重复提交标记
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'info' as 'info' | 'error' | 'success' | 'warning',
+  timeout: 3000
+})
+
+// Template download snackbar
+const templateSnackbar = ref({
+  show: false,
+  message: ''
+})
+
+// Import result
+const importResult = ref({
+  success: 0,
+  failed: 0,
+  errors: [] as string[]
+})
 
 // Table headers
 const headers = [
@@ -361,9 +441,10 @@ async function saveStudent() {
       await studentStore.addStudent(studentForm.value)
     }
     closeAddDialog()
+    showSnackbar('保存成功', 'success')
   } catch (error) {
     console.error('Failed to save student:', error)
-    alert('保存失败: ' + (error as Error).message)
+    showSnackbar('保存失败: ' + (error as Error).message, 'error')
   } finally {
     saving.value = false
   }
@@ -399,9 +480,10 @@ async function deleteStudent() {
     await studentStore.deleteStudent(studentToDelete.value.id)
     showDeleteDialog.value = false
     studentToDelete.value = null
+    showSnackbar('删除成功', 'success')
   } catch (error) {
     console.error('Failed to delete student:', error)
-    alert('删除失败: ' + (error as Error).message)
+    showSnackbar('删除失败: ' + (error as Error).message, 'error')
   }
 }
 
@@ -430,7 +512,13 @@ async function importStudents() {
 
     const result = await studentStore.importStudents(importData)
 
-    alert(`导入完成!\n成功: ${result.success}\n失败: ${result.failed}`)
+    // Show result in dialog
+    importResult.value = {
+      success: result.success,
+      failed: result.failed,
+      errors: result.errors || []
+    }
+    showImportResultDialog.value = true
 
     if (result.failed > 0 && result.errors.length > 0) {
       console.log('Import errors:', result.errors)
@@ -440,7 +528,7 @@ async function importStudents() {
     importFile.value = null
   } catch (error) {
     console.error('Import failed:', error)
-    alert('导入失败: ' + (error as Error).message)
+    showSnackbar('导入失败: ' + (error as Error).message, 'error')
   } finally {
     importing.value = false
   }
@@ -449,7 +537,7 @@ async function importStudents() {
 // Export students
 function exportStudents() {
   // Create CSV content
-  let csv = '姓名,性别,联系方式,年级,班级,特殊需求,备注\n'
+  let csv = '姓名,性别,联系方式,年级,班级,特殊需求,备注\\n'
 
   for (const student of studentStore.students) {
     csv += [
@@ -460,7 +548,7 @@ function exportStudents() {
       student.className || '',
       student.specialNeeds ? '是' : '否',
       student.notes || ''
-    ].join(',') + '\n'
+    ].join(',') + '\\n'
   }
 
   downloadFile(csv, 'students.csv', 'text/csv')
@@ -470,10 +558,23 @@ function exportStudents() {
 function downloadTemplate() {
   try {
     TemplateGenerator.downloadStudentTemplate()
-    alert('导入模板已下载！请查看浏览器下载文件夹。')
+    templateSnackbar.value = {
+      show: true,
+      message: '导入模板已下载！请查看浏览器下载文件夹。'
+    }
   } catch (error) {
     console.error('Failed to download template:', error)
-    alert('下载模板失败: ' + (error as Error).message)
+    showSnackbar('下载模板失败: ' + (error as Error).message, 'error')
+  }
+}
+
+// Helper function to show snackbar
+function showSnackbar(message: string, color: 'info' | 'error' | 'success' | 'warning' = 'info') {
+  snackbar.value = {
+    show: true,
+    message,
+    color,
+    timeout: 3000
   }
 }
 </script>

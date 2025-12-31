@@ -188,6 +188,21 @@
         </v-col>
       </v-row>
     </template>
+
+    <!-- Message Snackbar -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top"
+    >
+      {{ snackbar.message }}
+      <template #actions>
+        <v-btn variant="text" @click="snackbar.show = false">
+          关闭
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -209,6 +224,14 @@ const fillStore = useFillStore()
 
 const { currentLayout } = storeToRefs(layoutStore)
 
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'info' as 'info' | 'error' | 'success' | 'warning',
+  timeout: 3000
+})
+
 // Animation state
 const animationState = ref({
   isPlaying: false,
@@ -223,6 +246,16 @@ const seatNames = ref<Map<string, string>>(new Map())
 
 // Animation frames
 const frames = ref<AnimationFrame[]>([])
+
+// Helper function to show snackbar
+function showSnackbar(message: string, color: 'info' | 'error' | 'success' | 'warning' = 'info') {
+  snackbar.value = {
+    show: true,
+    message,
+    color,
+    timeout: 3000
+  }
+}
 
 // Cleanup on unmount
 onUnmounted(() => {
@@ -271,11 +304,18 @@ async function startAnimation() {
   animationState.value.isPlaying = true
   animationState.value.isPaused = false
 
-  await animationEngine.play(
-    frames.value,
-    fillStore.animationConfig,
-    handleAnimationEvent
-  )
+  try {
+    await animationEngine.play(
+      frames.value,
+      fillStore.animationConfig,
+      handleAnimationEvent
+    )
+    showSnackbar('动画演示完成', 'success')
+  } catch (error) {
+    console.error('Animation failed:', error)
+    showSnackbar('动画演示失败: ' + (error as Error).message, 'error')
+    animationState.value.isPlaying = false
+  }
 }
 
 // Pause animation
@@ -300,6 +340,7 @@ function stopAnimation() {
   for (const seat of layoutStore.currentLayout?.seats || []) {
     seatNames.value.set(seat.id, '')
   }
+  showSnackbar('动画已停止', 'info')
 }
 
 // Restart animation
@@ -369,9 +410,10 @@ function getSeatAnimationClasses(row: number, col: number): any {
 async function exportChart() {
   try {
     await Exporter.exportToPDF('animation-canvas', 'seating-chart.pdf')
+    showSnackbar('导出成功', 'success')
   } catch (error) {
     console.error('Export failed:', error)
-    alert('导出失败: ' + (error as Error).message)
+    showSnackbar('导出失败: ' + (error as Error).message, 'error')
   }
 }
 
@@ -379,9 +421,10 @@ async function exportChart() {
 async function printChart() {
   try {
     await Exporter.print('animation-canvas')
+    showSnackbar('打印任务已发送', 'success')
   } catch (error) {
     console.error('Print failed:', error)
-    alert('打印失败: ' + (error as Error).message)
+    showSnackbar('打印失败: ' + (error as Error).message, 'error')
   }
 }
 </script>

@@ -200,6 +200,21 @@
         </v-col>
       </v-row>
     </template>
+
+    <!-- Message Snackbar -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top"
+    >
+      {{ snackbar.message }}
+      <template #actions>
+        <v-btn variant="text" @click="snackbar.show = false">
+          关闭
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -220,6 +235,14 @@ const studentStore = useStudentStore()
 const fillStore = useFillStore()
 
 const { currentLayout } = storeToRefs(layoutStore)
+
+// Snackbar state
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'info' as 'info' | 'error' | 'success' | 'warning',
+  timeout: 3000
+})
 
 // Fill strategies
 const fillStrategies = [
@@ -245,6 +268,16 @@ const constraintWarning = computed(() => {
   return null
 })
 
+// Helper function to show snackbar
+function showSnackbar(message: string, color: 'info' | 'error' | 'success' | 'warning' = 'info') {
+  snackbar.value = {
+    show: true,
+    message,
+    color,
+    timeout: 3000
+  }
+}
+
 // Load data on mount
 onMounted(async () => {
   await layoutStore.loadLayouts()
@@ -264,15 +297,17 @@ async function performFill() {
       layoutStore.currentLayout.id,
       studentStore.students
     )
+    showSnackbar('座位填充成功', 'success')
   } catch (error) {
     console.error('Fill failed:', error)
-    alert('填充失败: ' + (error as Error).message)
+    showSnackbar('填充失败: ' + (error as Error).message, 'error')
   }
 }
 
 // Load history record
 async function loadHistoryRecord(record: any) {
   await fillStore.loadRecord(record.id)
+  showSnackbar('已加载历史记录', 'info')
 }
 
 // Get seat number
@@ -349,9 +384,10 @@ function goToAnimation() {
 async function exportChart() {
   try {
     await Exporter.exportToPDF('fill-preview', 'seating-chart.pdf')
+    showSnackbar('导出成功', 'success')
   } catch (error) {
     console.error('Export failed:', error)
-    alert('导出失败: ' + (error as Error).message)
+    showSnackbar('导出失败: ' + (error as Error).message, 'error')
   }
 }
 </script>
