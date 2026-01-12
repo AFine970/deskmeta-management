@@ -19,7 +19,9 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: 修复添加学生时列表重复新增的问题\n\n主要修复内容：\n- 在 UI 层添加防重复提交机制 \\(saving 状态\\)\n- Store 层 addStudent 增加 ID 去重检查\n- 使用 splice 替换数组元素确保响应式更新\n- 优化 closeAddDialog 和 editStudent 状态重置\n\n修复的问题：\n✅ 防止快速点击保存按钮导致重复提交\n✅ 防止相同 ID 的学生被重复添加到列表\n✅ 确保数据更新时响应式系统正确工作\n\n相关文件：\n- src/ui/views/StudentManagement.vue: 添加 saving 状态和按钮禁用逻辑\n- src/stores/student.ts: 增加重复数据检查和响应式更新优化\nEOF\n\\)\")",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nrefactor: 优化UI交互体验并增强功能区域可视化\n\n主要改进内容：\n\n## UI/UX 优化\n- ✅ 统一使用 snackbar 替代 alert 弹窗，提升用户体验\n- ✅ 在所有关键操作后显示状态反馈（成功/失败/警告）\n- ✅ 添加导入结果详情对话框，展示详细导入统计和错误信息\n\n## 座位表设计器增强\n- ✅ 新增功能区域可视化（后门、讲台）\n- ✅ 支持配置功能区域位置（顶部/底部/左侧/右侧/居中）\n- ✅ 实时预览功能区域布局（彩色边框和标签）\n- ✅ 新增编辑座位表对话框（支持修改所有属性）\n- ✅ 增强座位表操作（创建/编辑/删除/克隆/设为默认）\n\n## 座位填充优化\n- ✅ 添加填充成功/失败的状态反馈\n- ✅ 历史记录加载状态提示\n- ✅ 导出成功状态提示\n\n## 动画演示增强\n- ✅ 动画开始/完成/停止/失败的状态提示\n- ✅ 导出和打印操作的状态反馈\n\n## 数据一致性修复\n- ✅ Layout store 使用数据库重载替代数组操作\n- ✅ 确保所有 CRUD 操作后的数据一致性\n- ✅ 避免响应式更新问题\n\n## 技术改进\n- ✅ 新增功能区域类型定义（FunctionalAreas）\n- ✅ 统一的 snackbar 工具函数\n- ✅ 更好的错误处理和用户反馈\n\n相关文件：\n- src/ui/views/LayoutDesigner.vue: 功能区域可视化 + 编辑功能\n- src/ui/views/StudentManagement.vue: Snackbar + 导入结果对话框\n- src/ui/views/SeatFill.vue: Snackbar 状态反馈\n- src/ui/views/AnimationView.vue: Snackbar 状态反馈\n- src/stores/layout.ts: 数据一致性优化\nEOF\n\\)\")",
+      "Bash(npx vue-tsc:*)"
     ]
   }
 }

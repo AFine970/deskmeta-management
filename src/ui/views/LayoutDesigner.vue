@@ -8,8 +8,8 @@
       </v-col>
     </v-row>
 
-    <!-- Layout List -->
-    <v-row v-if="!currentLayout">
+    <!-- View Mode: List -->
+    <v-row v-if="viewMode === 'list'">
       <v-col cols="12">
         <v-card>
           <v-card-title class="d-flex align-center">
@@ -98,15 +98,98 @@
       </v-col>
     </v-row>
 
-    <!-- Layout Editor -->
-    <v-row v-if="currentLayout">
+    <!-- View Mode: Preview -->
+    <v-row v-if="viewMode === 'preview' && currentLayout">
+      <v-col cols="12">
+        <v-card class="preview-mode">
+          <v-card-title class="d-flex align-center">
+            <div>
+              {{ currentLayout.name }}
+              <v-chip v-if="hasAssignments" color="success" size="small" class="ml-2" variant="tonal">
+                已填充 {{ fillStore.currentRecord?.assignments.length }} 人
+              </v-chip>
+              <v-chip v-else color="warning" size="small" class="ml-2" variant="tonal">
+                未填充
+              </v-chip>
+            </div>
+            <v-spacer />
+            <v-btn icon @click="viewMode='edit'" title="编辑座位表" variant="text">
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+            <v-btn icon @click="backToList" title="返回列表" variant="text">
+              <v-icon>mdi-arrow-left</v-icon>
+            </v-btn>
+          </v-card-title>
+
+          <v-card-text>
+            <!-- 座位网格预览 -->
+            <div class="seat-preview-grid-wrapper">
+              <div class="seat-preview-grid">
+                <div
+                  v-for="seat in currentLayout.seats"
+                  :key="seat.id"
+                  class="seat-cell"
+                  :class="getPreviewSeatClass(seat)"
+                >
+                  <div class="seat-number">{{ seat.displayNumber }}</div>
+                  <div class="student-name">
+                    {{ getPreviewStudentName(seat) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 同桌组显示 -->
+            <div v-if="currentLayout.deskMateGroups && currentLayout.deskMateGroups.length > 0" class="mt-4">
+              <div class="text-caption mb-2">同桌组配置</div>
+              <div class="desk-mate-chips">
+                <v-chip
+                  v-for="group in currentLayout.deskMateGroups"
+                  :key="group.id"
+                  size="small"
+                  color="info"
+                  variant="outlined"
+                  class="mr-1 mb-1"
+                >
+                  {{ group.name }}: {{ group.studentIds.length }}人
+                </v-chip>
+              </div>
+            </div>
+
+            <!-- 无填充记录提示 -->
+            <v-alert v-if="!hasAssignments" type="info" variant="tonal" class="mt-4">
+              暂无填充记录，点击"编辑"修改座位表，或前往"换座位"页面进行填充
+            </v-alert>
+          </v-card-text>
+
+          <v-card-actions>
+            <v-btn color="primary" @click="viewMode='edit'">
+              编辑座位表
+            </v-btn>
+            <v-btn color="secondary" @click="goToFill">
+              {{ hasAssignments ? '重新换座位' : '去填充座位' }}
+            </v-btn>
+            <v-spacer />
+            <v-btn color="info" @click="cloneLayout" variant="outlined">
+              克隆
+            </v-btn>
+            <v-btn color="error" @click="confirmDelete(currentLayout)" variant="outlined">
+              删除
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- View Mode: Edit (原有编辑视图) -->
+    <v-row v-if="viewMode === 'edit' && currentLayout">
       <v-col cols="12">
         <v-btn
           prepend-icon="mdi-arrow-left"
-          @click="backToList"
+          @click="viewMode='preview'"
           class="mb-4"
         >
-          返回列表
+          返回预览
         </v-btn>
 
         <v-card>
@@ -122,7 +205,7 @@
           <v-card-text>
             <!-- Seating Grid with Functional Areas -->
             <div class="seating-layout-container">
-              <!-- Top Area (only podium if positioned at top) -->
+              <!-- Top Area -->
               <div
                 v-if="hasTopArea"
                 class="functional-area-area area-top"
@@ -134,7 +217,7 @@
                 </span>
               </div>
 
-              <!-- Middle Section: Left Area + Grid + Right Area -->
+              <!-- Middle Section -->
               <div class="seating-middle-section">
                 <!-- Left Area -->
                 <div
@@ -187,7 +270,7 @@
                 </div>
               </div>
 
-              <!-- Bottom Area (backDoor, podium if positioned at bottom) -->
+              <!-- Bottom Area -->
               <div
                 v-if="hasBottomArea"
                 class="functional-area-area area-bottom"
@@ -203,7 +286,7 @@
               </div>
             </div>
 
-            <!-- Functional Areas Summary Chips (for reference) -->
+            <!-- Functional Areas Summary Chips -->
             <div v-if="currentLayout.functionalAreas" class="mt-4">
               <div class="text-caption text-grey">已配置区域:</div>
               <div class="functional-areas-summary">
@@ -497,12 +580,19 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLayoutStore } from '../../stores/layout'
+import { useFillStore } from '../../stores/fill'
+import { useStudentStore } from '../../stores/student'
 import { storeToRefs } from 'pinia'
 import type { LayoutConfig } from '../../types'
 
 const router = useRouter()
 const layoutStore = useLayoutStore()
+const fillStore = useFillStore()
+const studentStore = useStudentStore()
 const { layouts, currentLayout } = storeToRefs(layoutStore)
+
+// View mode: 'list' | 'edit' | 'preview'
+const viewMode = ref<'list' | 'edit' | 'preview'>('list')
 
 // Form refs
 const formRef = ref<any>(null)
@@ -586,6 +676,16 @@ const rules = {
 // Load layouts on mount
 onMounted(async () => {
   await layoutStore.loadLayouts()
+
+  // 优先显示现有座位表
+  if (layoutStore.currentLayout) {
+    viewMode.value = 'preview'
+    // 加载该座位表的最新填充记录
+    await fillStore.loadHistory(layoutStore.currentLayout.id)
+    await studentStore.loadStudents()
+  } else {
+    viewMode.value = 'list'
+  }
 })
 
 // Helper function to show snackbar
@@ -596,11 +696,6 @@ function showSnackbar(message: string, color: 'info' | 'error' | 'success' | 'wa
     color,
     timeout: 3000
   }
-}
-
-// Select layout
-function selectLayout(layout: LayoutConfig) {
-  layoutStore.currentLayout = layout
 }
 
 // Open edit dialog
@@ -624,17 +719,12 @@ function openEditDialog() {
     isDefault: currentLayout.value.isDefault,
     hasStudents: false,
     functionalAreas: {
-      backDoor: { ...fa.backDoor },
-      podium: { ...fa.podium },
+      backDoor: { visible: fa.backDoor?.visible ?? false, position: fa.backDoor?.position ?? 'bottom' },
+      podium: { visible: fa.podium?.visible ?? false, position: fa.podium?.position ?? 'top-center' },
       aisles: [...(fa.aisles || [])]
     }
   }
   showEditDialog.value = true
-}
-
-// Back to list
-function backToList() {
-  layoutStore.currentLayout = null
 }
 
 // Create layout
@@ -812,6 +902,60 @@ const hasBottomArea = computed(() => {
          (fa.podium?.visible && fa.podium.position === 'bottom')
 })
 
+// Preview mode computed properties
+const hasAssignments = computed(() => {
+  return fillStore.currentRecord &&
+         fillStore.currentRecord.layoutId === currentLayout.value?.id &&
+         fillStore.currentRecord.assignments.length > 0
+})
+
+// Preview mode helper functions
+function getPreviewSeatClass(seat: any): string {
+  if (!fillStore.currentRecord || !hasAssignments.value) {
+    return 'empty'
+  }
+
+  const assignment = fillStore.currentRecord.assignments.find(
+    a => a.seatId === seat.id
+  )
+
+  if (!assignment) return 'empty'
+
+  const student = studentStore.getStudentById(assignment.studentId)
+  if (!student) return 'empty'
+
+  return student.gender === 'male' ? 'male' : 'female'
+}
+
+function getPreviewStudentName(seat: any): string {
+  if (!fillStore.currentRecord || !hasAssignments.value) {
+    return ''
+  }
+
+  const assignment = fillStore.currentRecord.assignments.find(
+    a => a.seatId === seat.id
+  )
+
+  if (!assignment) return ''
+
+  const student = studentStore.getStudentById(assignment.studentId)
+  return student?.name || ''
+}
+
+// Select layout and switch to preview mode
+function selectLayout(layout: LayoutConfig) {
+  layoutStore.currentLayout = layout
+  viewMode.value = 'preview'
+  // Load fill history for this layout
+  fillStore.loadHistory(layout.id)
+}
+
+// Back to list view
+function backToList() {
+  viewMode.value = 'list'
+  layoutStore.currentLayout = null
+}
+
 </script>
 
 <style scoped>
@@ -964,4 +1108,81 @@ const hasBottomArea = computed(() => {
 .area-bottom-center {
   justify-content: center;
 }
+
+/* Preview mode styles */
+.seat-preview-grid-wrapper {
+  background-color: #f5f5f5;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.seat-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 8px;
+  justify-content: center;
+}
+
+.seat-cell {
+  width: 60px;
+  height: 60px;
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  transition: all 0.3s;
+  font-size: 11px;
+}
+
+.seat-cell.empty {
+  background: #f5f5f5;
+  border-color: #ddd;
+  color: #999;
+}
+
+.seat-cell.male {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  color: #1565c0;
+}
+
+.seat-cell.female {
+  background: #fce4ec;
+  border-color: #e91e63;
+  color: #c2185b;
+}
+
+.seat-cell .seat-number {
+  font-size: 10px;
+  font-weight: bold;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.seat-cell .student-name {
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  padding: 0 2px;
+}
+
+.desk-mate-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Preview mode card styling */
+.preview-mode .v-card-title {
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  padding-bottom: 12px;
+}
+
 </style>

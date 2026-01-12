@@ -12,6 +12,9 @@ export type FillStrategy = 'random' | 'manual' | 'mixed'
  */
 export type ConstraintType = 'mixed_gender' | 'same_gender' | 'random'
 
+// Import DeskMateGroup type
+import type { DeskMateGroup } from './desk-mate'
+
 /**
  * Seat assignment
  */
@@ -39,6 +42,12 @@ export interface SeatingRecord {
   constraintType?: ConstraintType
   assignments: SeatAssignment[]
   createdAt: Date
+  animationConfig?: {
+    speed: number
+    enableSound: boolean
+    shuffleCount: number
+    pauseBetweenSeats: number
+  }
 }
 
 /**

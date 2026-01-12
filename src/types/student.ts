@@ -15,6 +15,7 @@ export interface Student {
   specialNeeds: boolean
   preferredSeatId?: string
   notes?: string
+  deskMateGroupId?: string  // 关联同桌组
   createdAt: Date
   updatedAt: Date
 }

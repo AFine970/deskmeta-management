@@ -68,10 +68,14 @@ export interface LayoutConfig {
   seatNumberingMode: SeatNumberingMode
   seats: Seat[]
   functionalAreas?: FunctionalAreas
+  deskMateGroups?: DeskMateGroup[]  // 同桌组配置
   isDefault: boolean
   createdAt: Date
   updatedAt: Date
 }
+
+// Import DeskMateGroup type
+import type { DeskMateGroup } from './desk-mate'
 
 /**
  * Layout creation data

@@ -18,5 +18,8 @@ export * from './fill'
 // Animation types
 export * from './animation'
 
+// Desk mate types
+export * from './desk-mate'
+
 // API types
 export * from './api'
